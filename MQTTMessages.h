@@ -1,0 +1,22 @@
+// MQTT Wireless Messages
+
+#define MQTTTESTMESSAGE 0
+#define MQTTTEMPHUM     2
+#define MQTTDEBUG       3
+#define MQTTSOLAR       4
+#define MQTTCAMERASTATUS       5
+#define MQTTLASTPICMESSAGEID 6
+
+
+// received Messages
+
+#define MQTTUPDATEPARAM 10
+#define MQTTCYCLECHANGE 11
+#define MQTTSTARTDELAY 12
+
+#define MQTTTURNOFFBLINK 13
+#define MQTTBLINKXTIMES 14
+#define MQTTSETTODEFAULTS 15
+
+#define MQTTREBOOT 16
+#define MQTTRESOLUTION 17
