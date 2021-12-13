@@ -69,6 +69,10 @@ void writePreferences()
 
 
   preferences.putString("MQTT_IP", MQTT_IP);
+  if (MQTT_PORT == 0)
+  { 
+    MQTT_PORT = 1883;
+  }
   preferences.putInt("MQTT_PORT", MQTT_PORT);
 
   preferences.putInt("time_to_sleep", time_to_sleep);

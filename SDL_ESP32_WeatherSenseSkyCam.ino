@@ -7,7 +7,7 @@
 #undef DISABLEI2C
 
 // Software version
-#define SOFTWAREVERSION 19
+#define SOFTWAREVERSION 23
 
 // Which SkyCam Protocol
 #define SKYCAMPROTOCOL 1
@@ -41,6 +41,8 @@ int SCLPIN = 13;
 int time_to_sleep = TIME_TO_SLEEP;
 int contrast_delay = DEFAULTCONTRASTDELAY;
 
+//long wdt_timeout = time_to_sleep * 3 + 3 * 10;
+
 
 // Global Variables
 int currentRSSI;
@@ -51,6 +53,7 @@ String Wssid;
 String WPassword;
 IPAddress myConnectedIp;
 IPAddress myConnectedGateWay;
+
 IPAddress myConnectedMask;
 bool WiFiPresent = false;
 
@@ -156,6 +159,7 @@ int protocolBufferCount;
 //Crc 16 library (XModem)
 Crc16 crc;
 
+//#include <esp_task_wdt.h>
 
 #include <Preferences.h>;
 /* create an instance of Preferences library */
@@ -433,6 +437,8 @@ int fetchRSSI()
 
 #include "getLocalAP.h"
 
+bool RequestedReset = false;
+
 void setupWifiandMQTT()
 {
   Serial.println("setupWiFiandMQTT");
@@ -443,83 +449,35 @@ void setupWifiandMQTT()
     return;
   }
 
-  // check for reset of preferences
+  RequestedReset = false;
+
   if (blinkLight)
   {
     pinMode(BLINKPIN, OUTPUT);
 
     // clear GPIO 0
-    //pinMode(0, INPUT);
-    // turn GPIO4 on
+
+
 
     blinkLED(1, 300);
   }
-  /*
-    long endtime;
+  pinMode(0, INPUT);
+  Serial.print("GPIO0=");
+  Serial.println(digitalRead(0));
+
+  if (digitalRead(0) == 0)
+  {
+    RequestedReset = true;
+  }
+  else
+  {
+    RequestedReset = false;
+  }
 
 
 
-    endtime = millis() + 3000;
-    int taplengthendtime;
-    bool wentToOne;
-    wentToOne = false;
-
-
-
-    int tapcount;
-    tapcount = 0;
-    blinkLED(1, 300);
-    while (millis() < endtime)
-    {
-
-    // check for double tap GPIO0 Low  twice
-
-    if (digitalRead(0) == 0)
-    {
-
-      taplengthendtime = millis() + 500;
-      while (millis() < taplengthendtime)
-      {
-        delay(200);
-        if (digitalRead(0) == 1)
-        {
-          wentToOne = true;
-          tapcount++;
-          Serial.print("tap");
-
-
-
-
-
-          break;
-        }
-
-
-      }
-
-    }
-
-    }
-
-
-
-    if (tapcount >= 3)
-    {
-    Serial.print("tapcount=");
-    Serial.println(tapcount);
-    resetPreferences();
-    delay(1000);
-    blinkLED(2, 300);
-    }
-
-
-    // reset preferences if GPIO0 Low, if not go on
-  */
-
-
-
-
-
+  Serial.print("RequestedReset=");
+  Serial.println(RequestedReset);
 
 
 
@@ -728,10 +686,10 @@ void setup() {
   Serial.print(Freq);
   Serial.println(" Hz");
 
-  Serial.print("Total heap: ");Serial.println(ESP.getHeapSize());
-  Serial.print("Free heap: ");Serial.println(ESP.getFreeHeap());
-  Serial.print("Total PSRAM: ");Serial.println(ESP.getPsramSize());
-  Serial.print("Free PSRAM: ");Serial.println(ESP.getFreePsram());
+  Serial.print("Total heap: "); Serial.println(ESP.getHeapSize());
+  Serial.print("Free heap: "); Serial.println(ESP.getFreeHeap());
+  Serial.print("Total PSRAM: "); Serial.println(ESP.getPsramSize());
+  Serial.print("Free PSRAM: "); Serial.println(ESP.getFreePsram());
 
   readPreferences();
 
@@ -843,6 +801,14 @@ void setup() {
     Serial.println("PSRAM Not Found");
   }
 
+  //setup watchdog timer
+  Serial.println("Configuring WDT...");
+  //wdt_timeout = time_to_sleep * 3 + 3 * 10;
+
+  //wdt_timeout = 30;
+  //esp_task_wdt_init(wdt_timeout, true); //enable panic so ESP32 restarts
+  //esp_task_wdt_add(NULL); //add current thread to WDT watch
+
 }
 
 void loop() {
@@ -905,7 +871,39 @@ void loop() {
 
   send_picture(fb);
 
+  Serial.print("RequestedReset=");
+  Serial.println(RequestedReset);
 
+  Serial.print("GPIO0=");
+  Serial.println(digitalRead(0));
+  // check for reset to defaults
+  /*
+    if (digitalRead(0) == 0)
+    {
+      if (RequestedReset == true)
+      {
+        Serial.println("Resetting Preferences");
+        resetPreferences();
+        if (blinkLight)
+        {
+          pinMode(BLINKPIN, OUTPUT);
+
+          // clear GPIO 0
+          //pinMode(0, INPUT);
+          // turn GPIO4 on
+
+          blinkLED(3, 300);
+        }
+        ESP.restart();
+      }
+
+    }
+    else
+    {
+      RequestedReset = false;
+    }
+
+  */
 
   //takeAndSendCameraPicture();
 
@@ -936,7 +934,7 @@ void loop() {
 
   reducePower();
 
-  vTaskDelay( (TIME_TO_SLEEP * 1000L) / portTICK_PERIOD_MS);
+  vTaskDelay( (time_to_sleep * 1000L) / portTICK_PERIOD_MS);
 
   increasePower();
 #else

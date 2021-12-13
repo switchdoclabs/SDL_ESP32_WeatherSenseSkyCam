@@ -303,6 +303,11 @@ void MQTTcallback(char* topic, byte* payload, unsigned int length) {
         {
           time_to_sleep = sleeptime;
           writePreferences();
+
+          // reset timing on watchdog timer
+          //wdt_timeout = time_to_sleep * 3 + 3 * 10;
+          //esp_task_wdt_init(wdt_timeout, true); //enable panic so ESP32 restarts
+          //esp_task_wdt_add(NULL); //add current thread to WDT watch
         }
 
       }
@@ -350,6 +355,27 @@ void MQTTcallback(char* topic, byte* payload, unsigned int length) {
         blinkLight = false;
       }
       break;
+
+    case MQTTERASEMEMORY:
+      {
+
+        resetPreferences();
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        ESP.restart();
+      }
+      break;
+
+      case MQTTSETMQTTIPPORT:
+      {
+
+       MQTT_IP = myJSON['mqttip'].as<String>();
+
+       MQTT_PORT = int(myJSON["mqttport"]);
+      writePreferences();
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        ESP.restart();
+
+      }
 
     case  MQTTSETTODEFAULTS :
       {
