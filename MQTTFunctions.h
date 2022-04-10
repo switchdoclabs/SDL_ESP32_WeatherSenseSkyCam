@@ -103,7 +103,7 @@ int sendMQTT(int messageType, String argument)
         AddString += "\", \"messagetype\": \"";
         AddString += messageType;
         AddString += "\", \"softwareversion\": \"";
-        AddString += String(SOFTWAREVERSION);
+        AddString += String(SKYCAMSOFTWAREVERSION);
         AddString += "\", \"currentrssi\": \"";
         AddString += String(currentRSSI);
         AddString += "\", \"devicepresent\": \"";
@@ -135,7 +135,7 @@ int sendMQTT(int messageType, String argument)
         AddString += messageType;
 
         AddString += "\", \"softwareversion\": \"";
-        AddString += String(SOFTWAREVERSION);
+        AddString += String(SKYCAMSOFTWAREVERSION);
 
         AddString += "\", \"sunairplusdevicepresent\": \"";
         AddString += String(SunAirPlus_Present);
@@ -212,6 +212,10 @@ int sendMQTT(int messageType, String argument)
   result = MQTTclient.publish(Topic.c_str(), SendString.c_str());
   Serial.print("MQTT publish result=");
   Serial.println(result);
+  if (result == 0)
+    MQTT_Good = false;
+  else
+    MQTT_Good = true;
   return result;
 }
 
@@ -365,13 +369,13 @@ void MQTTcallback(char* topic, byte* payload, unsigned int length) {
       }
       break;
 
-      case MQTTSETMQTTIPPORT:
+    case MQTTSETMQTTIPPORT:
       {
 
-       MQTT_IP = myJSON['mqttip'].as<String>();
+        MQTT_IP = myJSON['mqttip'].as<String>();
 
-       MQTT_PORT = int(myJSON["mqttport"]);
-      writePreferences();
+        MQTT_PORT = int(myJSON["mqttport"]);
+        writePreferences();
         vTaskDelay(1000 / portTICK_PERIOD_MS);
         ESP.restart();
 

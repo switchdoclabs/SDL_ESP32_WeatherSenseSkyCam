@@ -172,6 +172,12 @@ int sendMQTTChunk(long MessageID, int ChunkCount, String Chunk, int TotalNumberO
   result = MQTTclient.publish(Topic.c_str(), SendString.c_str());
   Serial.print("MQTT publish result=");
   Serial.println(result);
+
+  if (result == 0)
+    MQTT_Good = false;
+  else
+    MQTT_Good = true;
+
   return result;
 }
 

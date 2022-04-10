@@ -174,6 +174,7 @@ void readPreferences()
 
 
   MQTT_IP = preferences.getString("MQTT_IP", "");
+  //MQTT_IP = "192.168.1.21";
   MQTT_PORT = preferences.getInt("MQTT_PORT", 1883);
   time_to_sleep = preferences.getInt("time_to_sleep", TIME_TO_SLEEP);
   contrast_delay = preferences.getInt("contrast_delay", DEFAULTCONTRASTDELAY);
@@ -191,6 +192,8 @@ void readPreferences()
 
 
   preferences.end();
+
+  //writePreferences();
 
 #ifdef TXDEBUG
   Serial.println("----Reading Preferences---");

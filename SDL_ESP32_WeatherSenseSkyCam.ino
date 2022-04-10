@@ -7,7 +7,7 @@
 #undef DISABLEI2C
 
 // Software version
-#define SOFTWAREVERSION 23
+#define SKYCAMSOFTWAREVERSION 24
 
 // Which SkyCam Protocol
 #define SKYCAMPROTOCOL 1
@@ -118,7 +118,9 @@ SDL_Arduino_INA3221 INA3221;
 bool HDC1080_Present = false;
 bool SunAirPlus_Present = false;
 
+// For REST return Values
 
+String RESTreturnString = "";
 
 // picture storage and buffer
 #define DEFAULTSENSORSTRING "0;0;0;0;1;1;0;1;0;0;300;1;0;0;0;1;1;1;0;0;1;0;"
@@ -174,6 +176,12 @@ Preferences preferences;
 #include "soc/rtc_cntl_reg.h"
 //#include "driver/rtc_cntl.h"
 #include "rtc_cntl.h"
+
+// RTOS
+
+#include "RTOSDefs.h"
+
+
 
 #ifdef CONFIG_BROWNOUT_DET_LVL
 #define BROWNOUT_DET_LVL CONFIG_BROWNOUT_DET_LVL
@@ -331,6 +339,8 @@ void print_wakeup_reason() {
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 
+boolean MQTT_Good;
+
 #include "WiFiManager.h"          //https://github.com/tzapu/WiFiManager
 
 //void configModeCallback (WiFiManager *myWiFiManager)
@@ -342,6 +352,11 @@ void configModeCallback ()
   Serial.println(WiFi.softAPIP());
 
 }
+
+
+
+
+
 
 // MQTT
 
@@ -357,7 +372,6 @@ char MQTTmsg[MQTTMSG_BUFFER_SIZE];
 int sendMQTT(int messageType, String argument);
 
 #include "MQTTFunctions.h"
-
 
 
 
@@ -417,6 +431,20 @@ void MQTTreconnect(bool reboot) {
 }
 
 
+#include "MODaREST.h"
+#include "aRestFunctions.h"
+
+#define WEB_SERVER_PORT 80
+
+// Create aREST instance
+aREST rest = aREST();
+
+// Create an instance of the server
+WiFiServer MyServer(WEB_SERVER_PORT);
+
+// RTOS
+
+#include "RTOSTasks.h"
 
 // rssi
 
@@ -668,7 +696,7 @@ void setup() {
   Serial.println("****************************");
   Serial.println("SkyCam Remote");
   Serial.print("Version: ");
-  Serial.println(SOFTWAREVERSION);
+  Serial.println(SKYCAMSOFTWAREVERSION);
   Serial.println("****************************");
 
 
@@ -809,6 +837,36 @@ void setup() {
   //esp_task_wdt_init(wdt_timeout, true); //enable panic so ESP32 restarts
   //esp_task_wdt_add(NULL); //add current thread to WDT watch
 
+  // start up REST
+  
+  MyServer.begin();
+
+
+  Serial.print("MyServer.available=");
+  Serial.println(MyServer.available());
+
+  rest.function("checkForID", checkForID);
+  rest.function("restartMQTT", restartMQTT);
+
+    // Give name & ID to the device (ID should be 6 characters long)
+  rest.set_id(myID);
+  rest.set_name("SKYCAM");
+
+  xSemaphoreRESTCommand = xSemaphoreCreateBinary();
+  xSemaphoreGive( xSemaphoreRESTCommand);   // initialize
+
+  Serial.print("xSemaphoreRESTCommand=");
+  Serial.println(uxSemaphoreGetCount( xSemaphoreRESTCommand ));
+  //xSemaphoreTake( xSemaphoreRESTCommand, 10);   // start with this off
+
+  xTaskCreatePinnedToCore(
+    taskRESTCommand,          /* Task function. */
+    "TaskRESTCommand",        /* String with name of task. */
+    10000,            /* Stack size in words. */
+    NULL,             /* Parameter passed as input of the task */
+    3,                /* Priority of the task. */
+    NULL,             /* Task handle. */
+    1);               // Specific Core
 }
 
 void loop() {
@@ -932,11 +990,26 @@ void loop() {
 
   //delay(TIME_TO_SLEEP * 1000L); // just delay
 
-  reducePower();
+  if (MQTT_Good)  // Have MQTT connection - otherwise keep waiting for fix command
+  {
+    Serial.println("Reducing Power");
+    reducePower();
+  }
+  else
+  {
+    Serial.println("Keeping Radio on for REST becaused of MQTT Failure");
+  }
+
 
   vTaskDelay( (time_to_sleep * 1000L) / portTICK_PERIOD_MS);
 
-  increasePower();
+  if (MQTT_Good)  // Have MQTT connection
+  {
+
+    increasePower();
+    MyServer.begin();
+  }
+
 #else
   // Sleep code
 
